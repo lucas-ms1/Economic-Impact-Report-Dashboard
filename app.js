@@ -528,10 +528,11 @@ async function main() {
     }
 
     const parcelsGeojsonUrl = urls.parcelsGeojson;
+    const isGitHubPages = /github\.io$/i.test(window.location.hostname);
     if (await fileExists(parcelsPmtilesHttpUrl)) {
       parcelsRangeOk = await supportsByteRange(parcelsPmtilesHttpUrl);
     }
-    const useGeojsonFallback = !(await fileExists(parcelsPmtilesHttpUrl)) || !parcelsRangeOk;
+    const useGeojsonFallback = isGitHubPages || !(await fileExists(parcelsPmtilesHttpUrl)) || !parcelsRangeOk;
 
     const addParcelsLayer = (bandColorExpr, isVector) => {
       const layer = {
@@ -540,13 +541,14 @@ async function main() {
         source: "parcels",
         ...(isVector ? { "source-layer": "parcels" } : {}),
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 2.0, 12, 3.2, 15, 4.5],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 3.0, 12, 5.0, 15, 6.0],
           "circle-color": bandColorExpr,
           "circle-opacity": 1.0,
           "circle-stroke-color": "rgba(0,0,0,0.25)",
           "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 9, 0.0, 12, 0.6, 15, 0.9],
         },
-      });
+      };
+      map.addLayer(layer);
       map.on("click", "parcels-points", (e) => {
         const f = e.features?.[0];
         if (!f) return;
@@ -566,9 +568,18 @@ async function main() {
     };
 
     if (useGeojsonFallback && (await fileExists(parcelsGeojsonUrl))) {
-      map.addSource("parcels", { type: "geojson", data: parcelsGeojsonUrl });
-      addParcelsLayer(buildBandColorExpr("band", parcelBandColors), false);
-      parcelsRangeOk = true;
+      setStatus("Loading parcels (GeoJSON, ~28MB)...");
+      try {
+        const parcelsData = await fetchJson(parcelsGeojsonUrl);
+        map.addSource("parcels", { type: "geojson", data: parcelsData });
+        addParcelsLayer(buildBandColorExpr("band", parcelBandColors), false);
+        parcelsRangeOk = true;
+      } catch (err) {
+        setStatus(`Parcels failed to load: ${err?.message ?? err}`);
+        missing.push("parcels.geojson");
+        UI.toggleParcels.checked = false;
+        UI.toggleParcels.disabled = true;
+      }
     } else if (await fileExists(parcelsPmtilesHttpUrl)) {
       const pmtilesUrl = `pmtiles://${parcelsPmtilesHttpUrl}`;
       map.addSource("parcels", { type: "vector", url: pmtilesUrl });
