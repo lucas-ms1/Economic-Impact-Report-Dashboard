@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Butler County Parks Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <noscript>This dashboard requires JavaScript enabled.</noscript>
+
+    <div id="sidebar">
+      <a href="https://github.com/lucas-ms1/Butler-Co-Parks-Economic-Impact-Report" style="font-size: 12px; color: #1b5e20; margin-bottom: 8px; display: block;">← Report &amp; data</a>
+      <h1>Butler County Parks Dashboard</h1>
+
+      <div class="card" id="status-card" role="status" aria-live="polite">
+        <div class="status-title">Status</div>
+        <div id="status-text">Loading map...</div>
+      </div>
+
+      <div class="card">
+        <h2>Layers</h2>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-parcels" checked />
+          Parcels (distance bands)
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-residential-only" checked />
+          Residential only
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-parks" checked />
+          Parks (boundaries + points)
+        </label>
+        <div class="parks-universe">
+          <label class="toggle"><input type="radio" name="parksUniverse" value="metro" id="parks-metro" checked /> MetroParks only</label>
+          <label class="toggle"><input type="radio" name="parksUniverse" value="all" id="parks-all" /> All parks</label>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-tracts" />
+          Census tracts (health)
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-townships" />
+          Townships
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-districts" />
+          School districts
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>Distance type</h2>
+        <label class="toggle">
+          <input type="radio" name="distanceType" value="straight" id="dist-type-straight" checked />
+          Straight-line
+        </label>
+        <label class="toggle">
+          <input type="radio" name="distanceType" value="road" id="dist-type-road" />
+          Road distance
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>Distance bands</h2>
+        <div id="bandFilterList" class="band-checkbox-list"></div>
+        <div class="band-actions">
+          <button type="button" id="band-select-all" class="btn-small">Select all</button>
+          <button type="button" id="band-clear" class="btn-small">Clear</button>
+        </div>
+        <button type="button" id="refresh" class="btn-refresh">Refresh</button>
+        <p id="pending-hint" class="hint pending-hint" style="display: none;">Changes pending. Click Refresh to apply.</p>
+        <p class="hint">Bands reflect park boundary distance.</p>
+      </div>
+
+      <div class="card">
+        <h2>Legend (parcels)</h2>
+        <div id="legend-straight" class="legend">
+          <div class="legend-row"><span class="swatch" style="background: #c0392b"></span>0-0.1 mi</div>
+          <div class="legend-row"><span class="swatch" style="background: #e74c3c"></span>0.1-0.25 mi</div>
+          <div class="legend-row"><span class="swatch" style="background: #e67e22"></span>0.25-0.75 mi</div>
+          <div class="legend-row"><span class="swatch" style="background: #f39c12"></span>0.75-1.5 mi</div>
+          <div class="legend-row"><span class="swatch" style="background: #f1c40f"></span>1.5-3 mi</div>
+          <div class="legend-row"><span class="swatch" style="background: #999999"></span>&gt;3 mi</div>
+        </div>
+        <div id="legend-road" class="legend" style="display: none;">
+          <div class="legend-row"><span class="swatch" style="background: #c0392b"></span>0-0.5 mi</div>
+          <div class="legend-row"><span class="swatch" style="background: #e74c3c"></span>0.5-1 mi</div>
+          <div class="legend-row"><span class="swatch" style="background: #e67e22"></span>1-2 mi</div>
+          <div class="legend-row"><span class="swatch" style="background: #f39c12"></span>2-4 mi</div>
+          <div class="legend-row"><span class="swatch" style="background: #f1c40f"></span>4-6 mi</div>
+          <div class="legend-row"><span class="swatch" style="background: #e8c547"></span>6-10 mi</div>
+          <div class="legend-row"><span class="swatch" style="background: #999999"></span>&gt;10 mi</div>
+        </div>
+      </div>
+
+      <div class="card" id="details-card">
+        <h2>Details</h2>
+        <div id="details-content" class="details-content">
+          <p class="hint">Click a park, tract, township, or school district on the map.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Notes</h2>
+        <p class="hint">
+          Results are observational associations (not causal). Parcel layer shows centroids only
+          (no addresses).
+        </p>
+      </div>
+    </div>
+
+    <div id="map" aria-label="Interactive map"></div>
+
+    <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <script src="./app.js?v=20260214-7"></script>
+  </body>
+</html>

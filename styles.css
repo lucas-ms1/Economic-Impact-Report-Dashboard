@@ -1,0 +1,198 @@
+:root {
+  --sidebar-width: 340px;
+  --border: #e5e7eb;
+  --text: #111827;
+  --muted: #6b7280;
+  --bg: #ffffff;
+  --card: #ffffff;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--text);
+}
+
+body {
+  display: flex;
+  background: var(--bg);
+}
+
+#sidebar {
+  width: var(--sidebar-width);
+  max-width: 100%;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+#sidebar h1 {
+  font-size: 18px;
+  margin: 0 0 10px;
+}
+
+#sidebar h2 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+#map {
+  flex: 1;
+  min-width: 0;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  margin: 10px 0;
+  box-shadow: var(--shadow);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  user-select: none;
+}
+
+select {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: white;
+}
+
+.band-checkbox-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 8px 0;
+}
+
+.band-checkbox-list label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.band-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.btn-small {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: white;
+  cursor: pointer;
+}
+
+.btn-small:hover {
+  background: #f3f4f6;
+}
+
+.btn-refresh {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  background: #1b5e20;
+  color: white;
+  cursor: pointer;
+}
+
+.btn-refresh:hover {
+  background: #2e7d32;
+}
+
+.pending-hint {
+  color: #b45309;
+  margin-top: 8px;
+}
+
+.parks-universe {
+  margin-left: 20px;
+  margin-top: 4px;
+}
+
+.details-content {
+  font-size: 13px;
+  line-height: 1.5;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.details-content p {
+  margin: 4px 0;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 8px 0 0;
+  line-height: 1.35;
+}
+
+.legend {
+  display: grid;
+  gap: 6px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex: 0 0 auto;
+}
+
+#status-card .status-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+#status-text {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+  body {
+    flex-direction: column;
+  }
+
+  #sidebar {
+    width: 100%;
+    max-height: 46vh;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #map {
+    height: 54vh;
+  }
+}
