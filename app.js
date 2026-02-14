@@ -322,7 +322,7 @@ async function main() {
       map.setPaintProperty("parcels-points", "circle-color", buildBandColorExpr(bandProp, colors));
       let bandFilter;
       if (bands.size === 0) {
-        bandFilter = ["==", ["get", bandProp], "__none__"];
+        bandFilter = ["in", ["get", bandProp], ["literal", [...getBandsForType(distanceType)]]];
       } else {
         bandFilter = ["in", ["get", bandProp], ["literal", [...bands]]];
       }
@@ -539,9 +539,10 @@ async function main() {
         id: "parcels-points",
         type: "circle",
         source: "parcels",
+        minzoom: 0,
         ...(isVector ? { "source-layer": "parcels" } : {}),
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 3.0, 12, 5.0, 15, 6.0],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 4.0, 12, 6.0, 15, 8.0],
           "circle-color": bandColorExpr,
           "circle-opacity": 1.0,
           "circle-stroke-color": "rgba(0,0,0,0.25)",
@@ -570,8 +571,9 @@ async function main() {
     if (useGeojsonFallback && (await fileExists(parcelsGeojsonUrl))) {
       setStatus("Loading parcels (GeoJSON, ~28MB)...");
       try {
-        const parcelsData = await fetchJson(parcelsGeojsonUrl);
-        map.addSource("parcels", { type: "geojson", data: parcelsData });
+        const parcelsData = await fetchJson(parcelsGeojsonUrl + "?v=" + Date.now());
+        const src = { type: "geojson", data: parcelsData };
+        map.addSource("parcels", src);
         addParcelsLayer(buildBandColorExpr("band", parcelBandColors), false);
         parcelsRangeOk = true;
       } catch (err) {
