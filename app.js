@@ -211,6 +211,7 @@ async function main() {
     schoolDistricts: urlHere("./data/school_districts.geojson"),
     parcelsPmtiles: urlHere("./data/parcels.pmtiles"),
     parcelsPmtilesVersion: urlHere("./data/parcels.pmtiles.version"),
+    parcelsGeojson: urlHere("./data/parcels.geojson"),
     butlerFade: urlHere("./data/butler_county_fade.geojson"),
   };
 
@@ -526,16 +527,18 @@ async function main() {
       /* ignore */
     }
 
+    const parcelsGeojsonUrl = urls.parcelsGeojson;
     if (await fileExists(parcelsPmtilesHttpUrl)) {
       parcelsRangeOk = await supportsByteRange(parcelsPmtilesHttpUrl);
-      const pmtilesUrl = `pmtiles://${parcelsPmtilesHttpUrl}`;
-      map.addSource("parcels", { type: "vector", url: pmtilesUrl });
-      const bandColorExpr = buildBandColorExpr("band", parcelBandColors);
-      map.addLayer({
+    }
+    const useGeojsonFallback = !(await fileExists(parcelsPmtilesHttpUrl)) || !parcelsRangeOk;
+
+    const addParcelsLayer = (bandColorExpr, isVector) => {
+      const layer = {
         id: "parcels-points",
         type: "circle",
         source: "parcels",
-        "source-layer": "parcels",
+        ...(isVector ? { "source-layer": "parcels" } : {}),
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 2.0, 12, 3.2, 15, 4.5],
           "circle-color": bandColorExpr,
@@ -560,6 +563,16 @@ async function main() {
       });
       map.on("mouseenter", "parcels-points", () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", "parcels-points", () => (map.getCanvas().style.cursor = ""));
+    };
+
+    if (useGeojsonFallback && (await fileExists(parcelsGeojsonUrl))) {
+      map.addSource("parcels", { type: "geojson", data: parcelsGeojsonUrl });
+      addParcelsLayer(buildBandColorExpr("band", parcelBandColors), false);
+      parcelsRangeOk = true;
+    } else if (await fileExists(parcelsPmtilesHttpUrl)) {
+      const pmtilesUrl = `pmtiles://${parcelsPmtilesHttpUrl}`;
+      map.addSource("parcels", { type: "vector", url: pmtilesUrl });
+      addParcelsLayer(buildBandColorExpr("band", parcelBandColors), true);
     } else {
       missing.push("parcels.pmtiles");
       UI.toggleParcels.checked = false;
