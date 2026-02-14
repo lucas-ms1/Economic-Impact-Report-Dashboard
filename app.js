@@ -193,7 +193,7 @@ async function main() {
     container: "map",
     style: baseStyle,
     center: [-84.56, 39.4],
-    zoom: 10,
+    zoom: 12,
   });
   map.addControl(new maplibregl.NavigationControl(), "top-right");
   map.addControl(new maplibregl.ScaleControl({ unit: "imperial" }), "bottom-right");
