@@ -211,7 +211,8 @@ async function main() {
     schoolDistricts: urlHere("./data/school_districts.geojson"),
     parcelsPmtiles: urlHere("./data/parcels.pmtiles"),
     parcelsPmtilesVersion: urlHere("./data/parcels.pmtiles.version"),
-    parcelsGeojson: urlHere("./data/parcels.geojson"),
+    parcelsGeojsonMetro: urlHere("./data/parcels_metro.geojson"),
+    parcelsGeojsonAll: urlHere("./data/parcels.geojson"),
     butlerFade: urlHere("./data/butler_county_fade.geojson"),
   };
 
@@ -258,8 +259,27 @@ async function main() {
     residentialOnly: true,
   };
 
+  let parcelsSupportsRoadBands = true;
+  let parcelsSourceKind = null; // "geojson" | "vector"
+  let parcelsUniverseLoaded = null; // "metro" | "all"
+  let parcelsGeojsonCacheSuffix = `?v=${Date.now()}`;
+
+  function setParcelsRoadSupportFromGeojson(fc) {
+    const p = fc?.features?.[0]?.properties ?? {};
+    parcelsSupportsRoadBands = "band_road" in p || "dist_mi_road" in p;
+    if (UI.distTypeRoad) UI.distTypeRoad.disabled = !parcelsSupportsRoadBands;
+    if (!parcelsSupportsRoadBands && UI.distTypeRoad?.checked && UI.distTypeStraight) {
+      UI.distTypeStraight.checked = true;
+      pendingState.distanceType = "straight";
+      appliedState.distanceType = "straight";
+      pendingState.bands = new Set(STRAIGHT_BANDS);
+      appliedState.bands = new Set(STRAIGHT_BANDS);
+      renderBandCheckboxes();
+    }
+  }
+
   function getDistanceType() {
-    return UI.distTypeRoad?.checked ? "road" : "straight";
+    return UI.distTypeRoad?.checked && parcelsSupportsRoadBands ? "road" : "straight";
   }
   function getBandProp() {
     return getDistanceType() === "road" ? "band_road" : "band";
@@ -316,27 +336,42 @@ async function main() {
   }
   function applyStateToMap(map) {
     const { distanceType, bands, layers, parksUniverse, residentialOnly } = appliedState;
-    const bandProp = distanceType === "road" ? "band_road" : "band";
-    const colors = distanceType === "road" ? parcelBandColorsRoad : parcelBandColors;
+    const effectiveDistanceType = distanceType === "road" && parcelsSupportsRoadBands ? "road" : "straight";
+    const bandsForFilter = effectiveDistanceType === distanceType ? bands : new Set(getBandsForType(effectiveDistanceType));
+    const bandProp = effectiveDistanceType === "road" ? "band_road" : "band";
+    const colors = effectiveDistanceType === "road" ? parcelBandColorsRoad : parcelBandColors;
     if (map.getLayer("parcels-points")) {
       map.setPaintProperty("parcels-points", "circle-color", buildBandColorExpr(bandProp, colors));
       let bandFilter;
-      if (bands.size === 0) {
-        bandFilter = ["in", ["get", bandProp], ["literal", [...getBandsForType(distanceType)]]];
+      if (bandsForFilter.size === 0) {
+        bandFilter = ["in", ["get", bandProp], ["literal", [...getBandsForType(effectiveDistanceType)]]];
       } else {
-        bandFilter = ["in", ["get", bandProp], ["literal", [...bands]]];
+        bandFilter = ["in", ["get", bandProp], ["literal", [...bandsForFilter]]];
       }
       const parcelFilter = residentialOnly
         ? ["all", bandFilter, ["any", ["==", ["get", "class"], "R"], ["!", ["has", "class"]]]]
         : bandFilter;
       map.setFilter("parcels-points", parcelFilter);
     }
-    updateLegendVisibility(distanceType);
+    updateLegendVisibility(effectiveDistanceType);
     setGroupVisibility(map, LAYERS.parcels, layers.parcels);
     setGroupVisibility(map, LAYERS.parks, layers.parks);
     setGroupVisibility(map, LAYERS.tracts, layers.tracts);
     setGroupVisibility(map, LAYERS.townships, layers.townships);
     setGroupVisibility(map, LAYERS.districts, layers.districts);
+    if (parcelsSourceKind === "geojson" && parcelsUniverseLoaded && parcelsUniverseLoaded !== parksUniverse && map.getSource("parcels")) {
+      const nextUrl = (parksUniverse === "all" ? urls.parcelsGeojsonAll : urls.parcelsGeojsonMetro) + parcelsGeojsonCacheSuffix;
+      fetchJson(nextUrl)
+        .then((d) => {
+          map.getSource("parcels").setData(d);
+          parcelsUniverseLoaded = parksUniverse;
+          setParcelsRoadSupportFromGeojson(d);
+        })
+        .catch((err) => {
+          console.error(err);
+          setStatus(`Failed to load parcels for ${parksUniverse}: ${err?.message ?? err}`);
+        });
+    }
     if (map.getSource("parks_boundaries") && map.getSource("parks_points")) {
       const boundariesUrl = parksUniverse === "all" ? urls.parksBoundariesAll : urls.parksBoundariesMetro;
       const pointsUrl = parksUniverse === "all" ? urls.parksPointsAll : urls.parksPointsMetro;
@@ -521,13 +556,15 @@ async function main() {
       const r = await fetch(urls.parcelsPmtilesVersion, { method: "GET" });
       if (r.ok) {
         const v = (await r.text()).trim();
-        if (v) parcelsPmtilesHttpUrl = `${urls.parcelsPmtiles}?v=${encodeURIComponent(v)}`;
+        if (v) {
+          parcelsGeojsonCacheSuffix = `?v=${encodeURIComponent(v)}`;
+          parcelsPmtilesHttpUrl = `${urls.parcelsPmtiles}${parcelsGeojsonCacheSuffix}`;
+        }
       }
     } catch {
       /* ignore */
     }
 
-    const parcelsGeojsonUrl = urls.parcelsGeojson;
     const isGitHubPages = /github\.io$/i.test(window.location.hostname);
     if (await fileExists(parcelsPmtilesHttpUrl)) {
       parcelsRangeOk = await supportsByteRange(parcelsPmtilesHttpUrl);
@@ -568,24 +605,51 @@ async function main() {
       map.on("mouseleave", "parcels-points", () => (map.getCanvas().style.cursor = ""));
     };
 
+    const parcelsGeojsonUrl = (appliedState.parksUniverse === "all" ? urls.parcelsGeojsonAll : urls.parcelsGeojsonMetro) + parcelsGeojsonCacheSuffix;
+    const parcelsGeojsonFallbackUrl = urls.parcelsGeojsonAll + parcelsGeojsonCacheSuffix;
+
     if (useGeojsonFallback && (await fileExists(parcelsGeojsonUrl))) {
-      setStatus("Loading parcels (GeoJSON, ~28MB)...");
+      setStatus(`Loading parcels (${appliedState.parksUniverse === "all" ? "All parks" : "MetroParks only"} GeoJSON, ~28MB)...`);
       try {
-        const parcelsData = await fetchJson(parcelsGeojsonUrl + "?v=" + Date.now());
+        const parcelsData = await fetchJson(parcelsGeojsonUrl);
+        setParcelsRoadSupportFromGeojson(parcelsData);
         const src = { type: "geojson", data: parcelsData };
         map.addSource("parcels", src);
         addParcelsLayer(buildBandColorExpr("band", parcelBandColors), false);
+        parcelsSourceKind = "geojson";
+        parcelsUniverseLoaded = appliedState.parksUniverse;
         parcelsRangeOk = true;
       } catch (err) {
         setStatus(`Parcels failed to load: ${err?.message ?? err}`);
-        missing.push("parcels.geojson");
-        UI.toggleParcels.checked = false;
-        UI.toggleParcels.disabled = true;
+        if (useGeojsonFallback && (await fileExists(parcelsGeojsonFallbackUrl))) {
+          setStatus("Loading parcels (All parks GeoJSON fallback, ~28MB)...");
+          try {
+            const parcelsData = await fetchJson(parcelsGeojsonFallbackUrl);
+            setParcelsRoadSupportFromGeojson(parcelsData);
+            const src = { type: "geojson", data: parcelsData };
+            map.addSource("parcels", src);
+            addParcelsLayer(buildBandColorExpr("band", parcelBandColors), false);
+            parcelsSourceKind = "geojson";
+            parcelsUniverseLoaded = "all";
+            parcelsRangeOk = true;
+          } catch (err2) {
+            setStatus(`Parcels failed to load: ${err2?.message ?? err2}`);
+            missing.push("parcels.geojson");
+            UI.toggleParcels.checked = false;
+            UI.toggleParcels.disabled = true;
+          }
+        } else {
+          missing.push("parcels.geojson");
+          UI.toggleParcels.checked = false;
+          UI.toggleParcels.disabled = true;
+        }
       }
     } else if (await fileExists(parcelsPmtilesHttpUrl)) {
       const pmtilesUrl = `pmtiles://${parcelsPmtilesHttpUrl}`;
       map.addSource("parcels", { type: "vector", url: pmtilesUrl });
       addParcelsLayer(buildBandColorExpr("band", parcelBandColors), true);
+      parcelsSourceKind = "vector";
+      parcelsUniverseLoaded = "all";
     } else {
       missing.push("parcels.pmtiles");
       UI.toggleParcels.checked = false;

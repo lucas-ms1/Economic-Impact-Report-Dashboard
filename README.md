@@ -14,3 +14,8 @@ Interactive map dashboard for the [Butler County Parks Economic Impact Report](h
 ## Data
 
 Data is exported from the main report repo. To regenerate: run `export_dashboard_assets.py` and `build_parcels_pmtiles.sh` in the main repo, then copy outputs to `data/`.
+
+This dashboard expects two parcel GeoJSONs for GitHub Pages:
+
+- `data/parcels_metro.geojson`: distances/bands to MetroParks only
+- `data/parcels.geojson`: distances/bands to all parks
